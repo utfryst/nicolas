@@ -565,6 +565,21 @@
                 player.destroy();
             }
             
+            // Hantera orientering för video
+            if (screen.orientation) {
+                screen.orientation.addEventListener('change', async function() {
+                    if (screen.orientation.type.includes('landscape')) {
+                        try {
+                            await video.requestFullscreen();
+                        } catch (err) {
+                            console.error('Fullscreen error:', err);
+                        }
+                    } else if (document.fullscreenElement) {
+                        document.exitFullscreen();
+                    }
+                });
+            }
+            
             const newPlayer = new Hls();
             
             if (Hls.isSupported()) {
