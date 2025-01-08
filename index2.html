@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Library</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --background-color: #1a1a1a;
+            --card-background: #262626;
+            --text-color: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+        
+        .filter-container {
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        
+        .filter-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .search-box {
+            width: 100%;
+        }
+        
+        .search-input {
+            width: 100%;
+            background: var(--card-background);
+            color: var(--text-color);
+            padding: 0.875rem;
+            border: 1px solid #404040;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            -webkit-appearance: none;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .search-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .category-select,
+        .sort-select {
+            background: var(--card-background);
+            color: var(--text-color);
+            padding: 0.875rem;
+            border: 1px solid #404040;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            flex: 1;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+            padding-right: 2.5rem;
+        }
+        
+        .category-select:focus,
+        .sort-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .video-card {
+            background: var(--card-background);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .thumbnail-container {
+            position: relative;
+            padding-top: 147.06%; /* 204:300 aspect ratio (300/204 = 1.4706) */
+        }
+
+        .thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-info {
+            padding: 1rem;
+        }
+
+        .video-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+
+        .video-meta {
+            font-size: 0.9375rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+
+        .genre-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .genre-tag {
+            background: var(--primary-color);
+            padding: 0.375rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8125rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+            padding: 0.5rem;
+        }
+
+        .pagination button {
+            background: var(--card-background);
+            border: none;
+            color: var(--text-color);
+            min-width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.9375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        .pagination button.active {
+            background: var(--primary-color);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--background-color);
+            z-index: 1000;
+            touch-action: manipulation;
+        }
+
+        .modal-content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 0.75rem;
+            top: 0.75rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: var(--text-color);
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            cursor: pointer;
+        }
+
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: black;
+            touch-action: manipulation;
+        }
+
+        .episode-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .episode-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            gap: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            background: var(--card-background);
+        }
+
+        .episode-item:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .episode-thumbnail {
+            width: 120px;
+            height: 67.5px;
+            object-fit: cover;
+            border-radius: 0.375rem;
+        }
+
+        .episode-info {
+            flex: 1;
+            font-size: 0.9375rem;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                padding: 1.5rem;
+            }
+            
+            .video-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1rem;
+            }
+            
+            .filter-container {
+                flex-direction: row;
+                align-items: center;
+            }
+            
+            .search-box {
+                flex: 2;
+            }
+            
+            .filter-row {
+                flex: 1;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                max-width: 1400px;
+                padding: 2rem;
+            }
+            
+            .video-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .modal-content {
+                width: 90%;
+                height: auto;
+                max-width: 1200px;
+                margin: 2rem auto;
+                border-radius: 0.75rem;
+                overflow: hidden;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="filter-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Sök videos...">
+            </div>
+            <div class="filter-row">
+                <select id="categoryFilter" class="category-select">
+                    <option value="all">Alla kategorier</option>
+                </select>
+                <select id="sortFilter" class="sort-select">
+                    <option value="default">Sortera</option>
+                    <option value="fapped_rate">Betyg</option>
+                    <option value="fapped_total">Antal</option>
+                    <option value="viewed">Visningar</option>
+                </select>
+            </div>
+        </div>
+        <div class="video-grid" id="videoGrid"></div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <div class="modal" id="videoModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+            <video id="videoPlayer" class="video-player" controls playsinline></video>
+            <div class="episode-list" id="episodeList"></div>
+        </div>
+    </div>
+
+    <script>
+        let videos = [];
+        let filteredVideos = [];
+        let currentPage = 1;
+        let videosPerPage = 20; // Minskat antal per sida för mobil
+        let currentCategory = 'all';
+        let searchQuery = '';
+        let currentSort = 'default';
+        const player = new Hls();
+
+        // Uppdatera videos per page baserat på skärmstorlek
+        function updateVideosPerPage() {
+            if (window.innerWidth >= 1024) {
+                videosPerPage = 40;
+            } else if (window.innerWidth >= 640) {
+                videosPerPage = 30;
+            } else {
+                videosPerPage = 20;
+            }
+            filterAndSortVideos();
+        }
+
+        // Ladda video data och kategorier
+        async function loadVideos() {
+            try {
+                const videosResponse = await fetch('videos_updated.json');
+                videos = await videosResponse.json();
+                
+                const categoriesResponse = await fetch('categories.json');
+                const categories = await categoriesResponse.json();
+                
+                const categorySelect = document.getElementById('categoryFilter');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                });
+                
+                categorySelect.addEventListener('change', (e) => {
+                    currentCategory = e.target.value;
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                const searchInput = document.getElementById('searchInput');
+                const sortSelect = document.getElementById('sortFilter');
+                
+                searchInput.addEventListener('input', (e) => {
+                    searchQuery = e.target.value.toLowerCase();
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                sortSelect.addEventListener('change', (e) => {
+                    currentSort = e.target.value;
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                window.addEventListener('resize', updateVideosPerPage);
+                updateVideosPerPage();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        function filterAndSortVideos() {
+            filteredVideos = videos.filter(video => {
+                const matchesCategory = currentCategory === 'all' || video.genres.includes(currentCategory);
+                const matchesSearch = searchQuery === '' || 
+                    video.title.toLowerCase().includes(searchQuery) ||
+                    video.author.toLowerCase().includes(searchQuery) ||
+                    video.genres.some(genre => genre.toLowerCase().includes(searchQuery));
+                
+                return matchesCategory && matchesSearch;
+            });
+            
+            if (currentSort !== 'default') {
+                filteredVideos.sort((a, b) => {
+                    if (currentSort === 'fapped_rate') {
+                        return parseFloat(b.fapped_rate) - parseFloat(a.fapped_rate);
+                    } else if (currentSort === 'fapped_total') {
+                        return parseInt(b.fapped_total) - parseInt(a.fapped_total);
+                    } else if (currentSort === 'viewed') {
+                        return parseInt(b.viewed) - parseInt(a.viewed);
+                    }
+                    return 0;
+                });
+            }
+            
+            renderPage(1);
+            setupPagination();
+        }
+
+        function renderPage(page) {
+            const grid = document.getElementById('videoGrid');
+            grid.innerHTML = '';
+            
+            const startIndex = (page - 1) * videosPerPage;
+            const endIndex = startIndex + videosPerPage;
+            const pageVideos = filteredVideos.slice(startIndex, endIndex);
+
+            pageVideos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.onclick = () => openVideo(video);
+
+                card.innerHTML = `
+                    <div class="thumbnail-container">
+                        <img class="thumbnail" loading="lazy" src="${video.thumbnail}" alt="${video.title}">
+                    </div>
+                    <div class="video-info">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-meta">
+                            <div>${video.author}</div>
+                            <div>${video.viewed} visningar • ${video.fapped_rate}⭐ (${video.fapped_total})</div>
+                        </div>
+                        <div class="genre-tags">
+                            ${video.genres.slice(0, 3).map(genre => 
+                                `<span class="genre-tag">${genre}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function setupPagination() {
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            // Visa max 5 sidknappar på mobil, 7 på desktop
+            const maxButtons = window.innerWidth >= 640 ? 7 : 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+            if (endPage - startPage + 1 < maxButtons) {
+                startPage = Math.max(1, endPage - maxButtons + 1);
+            }
+
+            if (startPage > 1) {
+                const button = document.createElement('button');
+                button.innerText = '1';
+                button.onclick = () => {
+                    currentPage = 1;
+                    renderPage(1);
+                    setupPagination();
+                };
+                pagination.appendChild(button);
+
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('button');
+                    ellipsis.innerText = '...';
+                    ellipsis.style.cursor = 'default';
+                    pagination.appendChild(ellipsis);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                const button = document.createElement('button');
+                button.innerText = i;
+                button.classList.toggle('active', i === currentPage);
+                button.onclick = () => {
+                    currentPage = i;
+                    renderPage(i);
+                    setupPagination();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                };
+                pagination.appendChild(button);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('button');
+                    ellipsis.innerText = '...';
+                    ellipsis.style.cursor = 'default';
+                    pagination.appendChild(ellipsis);
+                }
+
+                const button = document.createElement('button');
+                button.innerText = totalPages;
+                button.onclick = () => {
+                    currentPage = totalPages;
+                    renderPage(totalPages);
+                    setupPagination();
+                };
+                pagination.appendChild(button);
+            }
+        }
+
+        function openVideo(video) {
+            const modal = document.getElementById('videoModal');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const episodeList = document.getElementById('episodeList');
+            
+            modal.style.display = 'block';
+            episodeList.innerHTML = '';
+            document.body.style.overflow = 'hidden'; // Förhindra scroll på bakgrunden
+
+            if (video.episodes.length > 1) {
+                const sortedEpisodes = [...video.episodes].sort((a, b) => a.episode_number - b.episode_number);
+                sortedEpisodes.forEach((episode, index) => {
+                    const episodeItem = document.createElement('div');
+                    episodeItem.className = 'episode-item';
+                    episodeItem.innerHTML = `
+                        <img class="episode-thumbnail" loading="lazy" src="${episode.episode_thumbnail}" alt="Episode ${episode.episode_number}">
+                        <div class="episode-info">
+                            <div>Avsnitt ${episode.episode_number}</div>
+                        </div>
+                    `;
+                    episodeItem.onclick = () => playEpisode(episode.m3u8_url);
+                    episodeList.appendChild(episodeItem);
+                });
+            }
+
+            const firstEpisode = [...video.episodes].sort((a, b) => a.episode_number - b.episode_number)[0];
+            playEpisode(firstEpisode.m3u8_url);
+        }
+
+        function playEpisode(m3u8Url) {
+            const video = document.getElementById('videoPlayer');
+            
+            if (player) {
+                player.destroy();
+            }
+            
+            const newPlayer = new Hls();
+            
+            if (Hls.isSupported()) {
+                newPlayer.loadSource(m3u8Url);
+                newPlayer.attachMedia(video);
+                newPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3u8Url;
+                video.addEventListener('loadedmetadata', () => {
+                    video.play();
+                });
+            }
+            
+            player = newPlayer;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('videoModal');
+            const video = document.getElementById('videoPlayer');
+            modal.style.display = 'none';
+            video.pause();
+            document.body.style.overflow = ''; // Återställ scroll
+            if (player) {
+                player.destroy();
+            }
+        }
+
+        // Hantera back-knapp för att stänga modal
+        window.addEventListener('popstate', () => {
+            if (document.getElementById('videoModal').style.display === 'block') {
+                closeModal();
+            }
+        });
+
+        // Starta appen
+        loadVideos();
+    </script>
+</body>
+</html>

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Library</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --background-color: #1a1a1a;
+            --card-background: #262626;
+            --text-color: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .filter-container {
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+        }
+        
+        .search-input {
+            width: 100%;
+            background: var(--card-background);
+            color: var(--text-color);
+            padding: 0.75rem;
+            border: 1px solid #404040;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .search-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .category-select,
+        .sort-select {
+            background: var(--card-background);
+            color: var(--text-color);
+            padding: 0.75rem;
+            border: 1px solid #404040;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            width: 200px;
+            cursor: pointer;
+        }
+        
+        .category-select:focus,
+        .sort-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        
+        .category-select option,
+        .sort-select option {
+            background: var(--card-background);
+            color: var(--text-color);
+            padding: 0.5rem;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .video-card {
+            background: var(--card-background);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: transform 0.2s;
+            cursor: pointer;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .thumbnail-container {
+            position: relative;
+            padding-top: 56.25%;
+        }
+
+        .thumbnail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .video-info {
+            padding: 1rem;
+        }
+
+        .video-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .video-meta {
+            font-size: 0.875rem;
+            color: #9ca3af;
+        }
+
+        .genre-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .genre-tag {
+            background: var(--primary-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 2rem;
+        }
+
+        .pagination button {
+            background: var(--card-background);
+            border: none;
+            color: var(--text-color);
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .pagination button:hover {
+            background: var(--primary-color);
+        }
+
+        .pagination button.active {
+            background: var(--primary-color);
+        }
+
+        /* Video Player Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 1200px;
+            margin: 2rem auto;
+            background: var(--card-background);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .close-modal {
+            position: absolute;
+            right: 1rem;
+            top: 1rem;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1001;
+        }
+
+        .video-player {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: black;
+        }
+
+        .episode-list {
+            padding: 1rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .episode-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.25rem;
+        }
+
+        .episode-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .episode-thumbnail {
+            width: 100px;
+            height: 56px;
+            object-fit: cover;
+            margin-right: 1rem;
+            border-radius: 0.25rem;
+        }
+
+        @media (max-width: 1200px) {
+            .video-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .video-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="filter-container">
+            <div class="search-box">
+                <input type="text" id="searchInput" class="search-input" placeholder="Sök videos...">
+            </div>
+            <select id="categoryFilter" class="category-select">
+                <option value="all">Alla kategorier</option>
+            </select>
+            <select id="sortFilter" class="sort-select">
+                <option value="default">Sortera efter</option>
+                <option value="fapped_rate">Betyg</option>
+                <option value="fapped_total">Antal betyg</option>
+                <option value="viewed">Visningar</option>
+            </select>
+        </div>
+        <div class="video-grid" id="videoGrid"></div>
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <div class="modal" id="videoModal">
+        <div class="modal-content">
+            <button class="close-modal" onclick="closeModal()">×</button>
+            <video id="videoPlayer" class="video-player" controls></video>
+            <div class="episode-list" id="episodeList"></div>
+        </div>
+    </div>
+
+    <script>
+        let videos = [];
+        let filteredVideos = [];
+        let currentPage = 1;
+        const videosPerPage = 52;
+        let currentCategory = 'all';
+        let searchQuery = '';
+        let currentSort = 'default';
+        const player = new Hls();
+
+        // Ladda video data och kategorier
+        async function loadVideos() {
+            try {
+                // Ladda videos
+                const videosResponse = await fetch('videos_updated.json');
+                videos = await videosResponse.json();
+                
+                // Ladda kategorier
+                const categoriesResponse = await fetch('categories.json');
+                const categories = await categoriesResponse.json();
+                
+                // Populera kategori-select
+                const categorySelect = document.getElementById('categoryFilter');
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category;
+                    option.textContent = category;
+                    categorySelect.appendChild(option);
+                });
+                
+                // Lägg till event listeners för filtrering
+                categorySelect.addEventListener('change', (e) => {
+                    currentCategory = e.target.value;
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                const searchInput = document.getElementById('searchInput');
+                const sortSelect = document.getElementById('sortFilter');
+                
+                searchInput.addEventListener('input', (e) => {
+                    searchQuery = e.target.value.toLowerCase();
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                sortSelect.addEventListener('change', (e) => {
+                    currentSort = e.target.value;
+                    currentPage = 1;
+                    filterAndSortVideos();
+                });
+                
+                // Initialisera med alla videos
+                filterAndSortVideos();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        // Filtrera och sortera videos
+        function filterAndSortVideos() {
+            // Först filtrera
+            filteredVideos = videos.filter(video => {
+                const matchesCategory = currentCategory === 'all' || video.genres.includes(currentCategory);
+                const matchesSearch = searchQuery === '' || 
+                    video.title.toLowerCase().includes(searchQuery) ||
+                    video.author.toLowerCase().includes(searchQuery) ||
+                    video.genres.some(genre => genre.toLowerCase().includes(searchQuery));
+                
+                return matchesCategory && matchesSearch;
+            });
+            
+            // Sedan sortera
+            if (currentSort !== 'default') {
+                filteredVideos.sort((a, b) => {
+                    if (currentSort === 'fapped_rate') {
+                        return parseFloat(b.fapped_rate) - parseFloat(a.fapped_rate);
+                    } else if (currentSort === 'fapped_total') {
+                        return parseInt(b.fapped_total) - parseInt(a.fapped_total);
+                    } else if (currentSort === 'viewed') {
+                        return parseInt(b.viewed) - parseInt(a.viewed);
+                    }
+                    return 0;
+                });
+            }
+            
+            renderPage(1);
+            setupPagination();
+        }
+
+        // Rendera videos för current page
+        function renderPage(page) {
+            const grid = document.getElementById('videoGrid');
+            grid.innerHTML = '';
+            
+            const startIndex = (page - 1) * videosPerPage;
+            const endIndex = startIndex + videosPerPage;
+            const pageVideos = filteredVideos.slice(startIndex, endIndex);
+
+            pageVideos.forEach(video => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.onclick = () => openVideo(video);
+
+                card.innerHTML = `
+                    <div class="thumbnail-container">
+                        <img class="thumbnail" src="${video.thumbnail}" alt="${video.title}">
+                    </div>
+                    <div class="video-info">
+                        <div class="video-title">${video.title}</div>
+                        <div class="video-meta">
+                            <div>${video.author}</div>
+                            <div>${video.viewed} visningar • ${video.fapped_rate}⭐ (${video.fapped_total})</div>
+                        </div>
+                        <div class="genre-tags">
+                            ${video.genres.slice(0, 3).map(genre => 
+                                `<span class="genre-tag">${genre}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Sätt upp paginering
+        function setupPagination() {
+            const totalPages = Math.ceil(filteredVideos.length / videosPerPage);
+            const pagination = document.getElementById('pagination');
+            pagination.innerHTML = '';
+
+            for (let i = 1; i <= totalPages; i++) {
+                const button = document.createElement('button');
+                button.innerText = i;
+                button.classList.toggle('active', i === currentPage);
+                button.onclick = () => {
+                    currentPage = i;
+                    renderPage(i);
+                    setupPagination();
+                };
+                pagination.appendChild(button);
+            }
+        }
+
+        // Öppna video i modal
+        function openVideo(video) {
+            const modal = document.getElementById('videoModal');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const episodeList = document.getElementById('episodeList');
+            
+            modal.style.display = 'block';
+            episodeList.innerHTML = '';
+
+            // Visa episodlista om det finns flera episoder
+            if (video.episodes.length > 1) {
+                // Sortera episoderna i stigande ordning
+                const sortedEpisodes = [...video.episodes].sort((a, b) => a.episode_number - b.episode_number);
+                sortedEpisodes.forEach((episode, index) => {
+                    const episodeItem = document.createElement('div');
+                    episodeItem.className = 'episode-item';
+                    episodeItem.innerHTML = `
+                        <img class="episode-thumbnail" src="${episode.episode_thumbnail}" alt="Episode ${episode.episode_number}">
+                        <div>Episode ${episode.episode_number}</div>
+                    `;
+                    episodeItem.onclick = () => playEpisode(episode.m3u8_url);
+                    episodeList.appendChild(episodeItem);
+                });
+            }
+
+            // Spela första episoden automatiskt
+            // Sortera episoderna och spela första episoden
+            const firstEpisode = [...video.episodes].sort((a, b) => a.episode_number - b.episode_number)[0];
+            playEpisode(firstEpisode.m3u8_url);
+        }
+
+        // Spela upp en specifik episod
+        function playEpisode(m3u8Url) {
+            const video = document.getElementById('videoPlayer');
+            
+            // Rensa tidigare HLS-instans om den finns
+            if (player) {
+                player.destroy();
+            }
+            
+            // Skapa ny HLS-instans
+            const newPlayer = new Hls();
+            
+            if (Hls.isSupported()) {
+                newPlayer.loadSource(m3u8Url);
+                newPlayer.attachMedia(video);
+                newPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = m3u8Url;
+                video.addEventListener('loadedmetadata', () => {
+                    video.play();
+                });
+            }
+            
+            // Uppdatera globala player-referensen
+            player = newPlayer;
+        }
+
+        // Stäng modal
+        function closeModal() {
+            const modal = document.getElementById('videoModal');
+            const video = document.getElementById('videoPlayer');
+            modal.style.display = 'none';
+            video.pause();
+            player.destroy();
+        }
+
+        // Starta appen
+        loadVideos();
+    </script>
+</body>
+</html>
