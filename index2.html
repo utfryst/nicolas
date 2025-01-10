@@ -2,11 +2,11 @@
 <html lang="sv">
 <head>
     <script>
-        // Kontrollera både skärmbredd och användaragent för bättre tillförlitlighet
-        const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
-        if (!isMobile) {
+        // Omdirigera datoranvändare till index.html
+        if (!/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
             window.location.href = 'index.html'; 
         }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Library</title>
