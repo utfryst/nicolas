@@ -2,8 +2,9 @@
 <html lang="sv">
 <head>
     <script>
-        // Omdirigera datoranvändare till index.html
-        if (!/Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // Kontrollera både skärmbredd och användaragent för bättre tillförlitlighet
+        const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        if (!isMobile) {
             window.location.href = 'index.html'; 
         }
     <meta charset="UTF-8">
